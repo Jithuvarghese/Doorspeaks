@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { depositCheckSchema, reviewInputSchema } from "@doorspeaks/shared";
-import { landlords, reviews, rightsGuides } from "./data.js";
+import { landlords, reviews, seededRentData, seededRightsGuides } from "./data.js";
 
 const app = Fastify({ logger: true });
 
@@ -27,6 +27,13 @@ app.get("/api/landlords", async (request, reply) => {
 
   return { results: filtered };
 });
+
+app.get("/api/test-data", async () => ({
+  landlords,
+  reviews,
+  rentData: seededRentData,
+  rightsGuides: seededRightsGuides
+}));
 
 app.post("/api/reviews", async (request, reply) => {
   const parsed = reviewInputSchema.safeParse(request.body);
@@ -82,7 +89,7 @@ app.post("/api/deposit-check", async (request, reply) => {
 });
 
 app.get("/api/rights", async () => ({
-  guides: rightsGuides
+  guides: seededRightsGuides
 }));
 
 const port = Number(process.env.PORT || 4000);

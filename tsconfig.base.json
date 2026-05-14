@@ -5,7 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@doorspeaks/shared": ["packages/shared/src/index.ts"]
+      "@doorspeaks/shared": ["packages/shared/src/index.ts"],
+      "@doorspeaks/shared/testData": ["packages/shared/src/testData.ts"]
     },
     "strict": true,
     "skipLibCheck": true,

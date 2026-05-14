@@ -46,8 +46,10 @@ code,
 }
 
 .shell {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.2rem;
+  min-height: 100svh;
 }
 
 .page-stack {
@@ -130,7 +132,7 @@ code,
 .app-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 0.75rem;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--color-border);
@@ -143,7 +145,7 @@ code,
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   width: 100%;
 }
 
@@ -315,9 +317,29 @@ code,
   align-items: center;
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-border);
-  border-radius: 22px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.05);
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding-left: max(1rem, calc((100vw - min(1240px, 92%)) / 2));
+  padding-right: max(1rem, calc((100vw - min(1240px, 92%)) / 2));
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.footer-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  padding: 0.2rem;
 }
 
 .site-footer p {
@@ -480,6 +502,38 @@ button {
   border-radius: 16px;
   padding: 0.85rem;
   background: #fff;
+}
+
+.landlord-meta-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin: 0.8rem 0 0.6rem;
+}
+
+.rail-hint {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.landlord-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(290px, 1fr);
+  gap: 0.9rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.landlord-rail-item {
+  scroll-snap-align: start;
+}
+
+.landlord-rail .landlord-card {
+  min-height: 100%;
 }
 
 .landlord-card:last-child {
@@ -668,8 +722,15 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .app-nav {
+    justify-content: flex-start;
+    border-radius: 20px;
+    padding: 0.5rem;
+  }
+
   .menu-toggle {
     display: inline-flex;
+    flex-shrink: 0;
   }
 
   .nav-links {
@@ -698,5 +759,16 @@ button {
   .topbar-copy-wrap,
   .footer-links {
     justify-content: flex-start;
+  }
+
+  .site-footer {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .landlord-rail {
+    grid-auto-columns: minmax(260px, 82vw);
   }
 }

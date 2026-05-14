@@ -1,7 +1,5 @@
-import type { ReactNode } from "react";
-import type { Landlord, ReviewInput } from "@doorspeaks/shared";
-
 import type { PageId, TestDataPayload } from "./types";
+import type { ReactNode } from "react";
 
 interface Props {
   testData: TestDataPayload;

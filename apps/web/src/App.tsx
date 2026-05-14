@@ -100,9 +100,12 @@ export function App() {
       <div className="page-content">{renderPage()}</div>
 
       <footer className="site-footer">
-        <div>
-          <strong>DoorSpeaks</strong>
-          <p>Tenant-first rental transparency for Bangalore. Know before you sign.</p>
+        <div className="footer-brand">
+          <img className="footer-logo" src="/logo.png" alt="DoorSpeaks" />
+          <div>
+            <strong>DoorSpeaks</strong>
+            <p>Tenant-first rental transparency for Bangalore. Know before you sign.</p>
+          </div>
         </div>
         <div className="footer-links">
           <span>Reviews</span>

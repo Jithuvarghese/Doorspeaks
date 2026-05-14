@@ -36,9 +36,15 @@ export function LandlordsPage() {
         </div>
       </article>
 
-      <div className="list">
+      <div className="rail-hint">
+        Swipe horizontally to browse profiles.
+      </div>
+
+      <div className="landlord-rail" role="list" aria-label="Landlord profiles">
         {results.map((landlord) => (
-          <LandlordCard key={landlord.id} landlord={landlord} />
+          <div className="landlord-rail-item" role="listitem" key={landlord.id}>
+            <LandlordCard landlord={landlord} />
+          </div>
         ))}
       </div>
     </section>

@@ -1,5 +1,9 @@
 import { FormEvent, useMemo, useState } from "react";
-import type { Landlord, ReviewInput } from "@doorspeaks/shared";
+import type { ReviewInput } from "@doorspeaks/shared";
+import { useTestData } from "./hooks";
+import { LandlordCard } from "./components/LandlordCard";
+import { ReviewCard } from "./components/ReviewCard";
+import { RentTrendCard } from "./components/RentTrendCard";
 
 const API_BASE = "http://localhost:4000";
 
@@ -13,39 +17,32 @@ type DepositResult = {
   nextStepTemplate: string;
 };
 
-type RightsGuide = {
-  id: string;
-  title: string;
-  summary: string;
-  language: string[];
-};
-
 export function App() {
+  const { data: testData, loading: dataLoading, error: dataError } = useTestData();
+
   const [query, setQuery] = useState("");
-  const [landlords, setLandlords] = useState<Landlord[]>([]);
-  const [searchStatus, setSearchStatus] = useState("Search for a landlord by name or locality.");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const [rent, setRent] = useState("");
   const [demand, setDemand] = useState("");
   const [depositResult, setDepositResult] = useState<DepositResult | null>(null);
-
-  const [rights, setRights] = useState<RightsGuide[]>([]);
-  const [rightsLoaded, setRightsLoaded] = useState(false);
 
   const [reviewBody, setReviewBody] = useState("");
   const [reviewStatus, setReviewStatus] = useState("Write at least 100 characters and submit for moderation.");
 
   const reviewLength = useMemo(() => reviewBody.trim().length, [reviewBody]);
 
-  async function handleLandlordSearch(event: FormEvent) {
+  function handleLandlordSearch(event: FormEvent) {
     event.preventDefault();
-    setSearchStatus("Searching...");
+    if (!testData) return;
 
-    const response = await fetch(`${API_BASE}/api/landlords?q=${encodeURIComponent(query)}`);
-    const data = (await response.json()) as { results: Landlord[] };
+    const q = query.toLowerCase().trim();
+    const results = testData.landlords.filter(
+      (landlord) =>
+        landlord.name.toLowerCase().includes(q) || landlord.locality.toLowerCase().includes(q)
+    );
 
-    setLandlords(data.results);
-    setSearchStatus(`${data.results.length} profile(s) found.`);
+    setSearchResults(results);
   }
 
   async function handleDepositCheck(event: FormEvent) {
@@ -66,12 +63,27 @@ export function App() {
     setDepositResult(data);
   }
 
-  async function handleLoadRights() {
-    const response = await fetch(`${API_BASE}/api/rights`);
-    const data = (await response.json()) as { guides: RightsGuide[] };
-    setRights(data.guides);
-    setRightsLoaded(true);
-  }
+  const rentTrends = useMemo(() => {
+    if (!testData) return [];
+
+    const byLocalityBhk = new Map<string, typeof testData["rentData"]>();
+
+    testData.rentData.forEach((point) => {
+      const key = `${point.locality}|${point.bhk}`;
+      if (!byLocalityBhk.has(key)) byLocalityBhk.set(key, []);
+      byLocalityBhk.get(key)!.push(point);
+    });
+
+    return Array.from(byLocalityBhk.entries()).map(([key, points]) => {
+      const [locality, bhk] = key.split("|");
+      const rents = points.map((p) => p.monthlyRent).sort((a, b) => a - b);
+      const avg = Math.round(rents.reduce((a, b) => a + b, 0) / rents.length);
+      const p25 = rents[Math.floor(rents.length * 0.25)] ?? avg;
+      const p75 = rents[Math.floor(rents.length * 0.75)] ?? avg;
+
+      return { locality, bhk, avg, p25, p75, count: points.length };
+    });
+  }, [testData]);
 
   async function handleReviewSubmit(event: FormEvent) {
     event.preventDefault();
@@ -110,12 +122,36 @@ export function App() {
     setReviewBody("");
   }
 
+  if (dataLoading) {
+    return (
+      <main className="page">
+        <section className="hero">
+          <h1>DoorSpeaks</h1>
+          <p>Loading data...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (dataError || !testData) {
+    return (
+      <main className="page">
+        <section className="hero">
+          <h1>DoorSpeaks</h1>
+          <p className="alert bad">
+            Error loading test data: {dataError}. Make sure the API is running on port 4000.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="page">
       <section className="hero">
         <h1>DoorSpeaks</h1>
         <p>Know before you sign. Tenant-first rental transparency for Bangalore.</p>
-        <span className="badge">Phase 2 MVP scaffold</span>
+        <span className="badge">Phase 2 MVP</span>
       </section>
 
       <section className="grid" aria-label="MVP modules">
@@ -124,20 +160,19 @@ export function App() {
           <p>Find landlord profiles with community ratings.</p>
           <form onSubmit={handleLandlordSearch}>
             <label htmlFor="query">Landlord or locality</label>
-            <input id="query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Example: HSR" />
+            <input
+              id="query"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Example: HSR, Srinivas, Koramangala"
+            />
             <div style={{ height: "0.6rem" }} />
             <button type="submit">Search</button>
           </form>
-          <p className="mono">{searchStatus}</p>
+          <small className="mono">{searchResults.length} profile(s) found</small>
           <div className="list">
-            {landlords.map((item) => (
-              <div className="list-item" key={item.id}>
-                <strong>{item.name}</strong>
-                <div>{item.locality}</div>
-                <small>
-                  Rating {item.avgRating} / 5 from {item.reviewCount} review(s)
-                </small>
-              </div>
+            {searchResults.map((landlord) => (
+              <LandlordCard key={landlord.id} landlord={landlord} />
             ))}
           </div>
         </article>
@@ -149,11 +184,24 @@ export function App() {
             <div className="form-grid">
               <div>
                 <label htmlFor="rent">Monthly rent (INR)</label>
-                <input id="rent" type="number" min={1} value={rent} onChange={(e) => setRent(e.target.value)} required />
+                <input
+                  id="rent"
+                  type="number"
+                  min={1}
+                  value={rent}
+                  onChange={(e) => setRent(e.target.value)}
+                  required
+                />
               </div>
               <div>
                 <label htmlFor="demand">Landlord demand (optional)</label>
-                <input id="demand" type="number" min={0} value={demand} onChange={(e) => setDemand(e.target.value)} />
+                <input
+                  id="demand"
+                  type="number"
+                  min={0}
+                  value={demand}
+                  onChange={(e) => setDemand(e.target.value)}
+                />
               </div>
             </div>
             <div style={{ height: "0.6rem" }} />
@@ -163,7 +211,8 @@ export function App() {
           {depositResult ? (
             <div style={{ marginTop: "0.8rem" }}>
               <div className={depositResult.overLimit ? "alert bad" : "alert good"}>
-                Legal max: INR {depositResult.legalMax.toLocaleString()} | Asked: INR {depositResult.landlordDemand.toLocaleString()}
+                Legal max: INR {depositResult.legalMax.toLocaleString()} | Asked: INR{" "}
+                {depositResult.landlordDemand.toLocaleString()}
               </div>
               <p className="mono">{depositResult.legalReference}</p>
               <p>{depositResult.nextStepTemplate}</p>
@@ -195,16 +244,41 @@ export function App() {
         <article className="card">
           <h2>Tenant Rights Hub</h2>
           <p>Plain-language legal guidance in English, Kannada, and Hindi.</p>
-          <button type="button" onClick={handleLoadRights}>
-            {rightsLoaded ? "Refresh guides" : "Load rights guides"}
-          </button>
-          <div className="list" style={{ marginTop: "0.7rem" }}>
-            {rights.map((guide) => (
+          <div className="list">
+            {testData.rightsGuides.map((guide) => (
               <div className="list-item" key={guide.id}>
                 <strong>{guide.title}</strong>
                 <p>{guide.summary}</p>
                 <small>Languages: {guide.language.join(", ")}</small>
               </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="card">
+          <h2>Rent Transparency Map</h2>
+          <p>Market rent by locality and BHK type.</p>
+          <div className="list">
+            {rentTrends.map((trend, idx) => (
+              <div className="list-item" key={idx}>
+                <strong>{trend.locality}</strong> • {trend.bhk}
+                <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--color-amber)" }}>
+                  ₹{trend.avg.toLocaleString()}
+                </div>
+                <small className="mono">
+                  P25: ₹{trend.p25.toLocaleString()} | P75: ₹{trend.p75.toLocaleString()} ({trend.count} data points)
+                </small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="card">
+          <h2>Recent Reviews</h2>
+          <p>Latest tenant experiences published.</p>
+          <div className="list">
+            {testData.reviews.slice(0, 3).map((review) => (
+              <ReviewCard key={review.id} review={review} />
             ))}
           </div>
         </article>

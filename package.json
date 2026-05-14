@@ -1,0 +1,19 @@
+{
+  "name": "doorspeaks",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @doorspeaks/api & npm run dev -w @doorspeaks/web",
+    "dev:web": "npm run dev -w @doorspeaks/web",
+    "dev:api": "npm run dev -w @doorspeaks/api",
+    "build": "npm run build -w @doorspeaks/shared && npm run build -w @doorspeaks/api && npm run build -w @doorspeaks/web",
+    "typecheck": "npm run typecheck -w @doorspeaks/shared && npm run typecheck -w @doorspeaks/api && npm run typecheck -w @doorspeaks/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -26,7 +26,10 @@ export const landlords: Landlord[] = [
   { id: "ll-003", name: "R. Natarajan", locality: "Whitefield", avgRating: 3.6, reviewCount: 12 },
   { id: "ll-004", name: "Sree Rentals", locality: "Marathahalli", avgRating: 3.1, reviewCount: 9 },
   { id: "ll-005", name: "Lakshmi Estates", locality: "Bellandur", avgRating: 4.4, reviewCount: 24 },
-  { id: "ll-006", name: "Ganesh House Owners", locality: "Indiranagar", avgRating: 3.8, reviewCount: 15 }
+  { id: "ll-006", name: "Ganesh House Owners", locality: "Indiranagar", avgRating: 3.8, reviewCount: 15 },
+  { id: "ll-007", name: "Cedar Homes", locality: "Jayanagar", avgRating: 4.6, reviewCount: 19 },
+  { id: "ll-008", name: "BlueBrick Rentals", locality: "Electronic City", avgRating: 2.9, reviewCount: 27 },
+  { id: "ll-009", name: "Urban Nest", locality: "BTM Layout", avgRating: 3.9, reviewCount: 14 }
 ];
 
 export const reviews: ReviewRecord[] = [
@@ -89,6 +92,51 @@ export const reviews: ReviewRecord[] = [
     tags: ["Utility threats", "Notice dispute", "Keep written proof"],
     publishedAt: "2026-05-08T17:45:00.000Z",
     status: "PUBLISHED"
+  },
+  {
+    id: "rv-105",
+    landlordId: "ll-007",
+    landlordName: "Cedar Homes",
+    reviewerType: "STUDENT",
+    locality: "Jayanagar",
+    bhk: "1BHK",
+    body:
+      "Clean communication, clear maintenance process, and the deposit was settled on time. The agreement matched what was discussed before move-in.",
+    depositReturned: "FULL",
+    ratings: { fairness: 5, communication: 5, maintenance: 4, depositHandling: 5, privacy: 5 },
+    tags: ["Deposit returned", "Clear agreement", "Responsive"],
+    publishedAt: "2026-05-11T12:20:00.000Z",
+    status: "PUBLISHED"
+  },
+  {
+    id: "rv-106",
+    landlordId: "ll-008",
+    landlordName: "BlueBrick Rentals",
+    reviewerType: "WORKING_MIGRANT",
+    locality: "Electronic City",
+    bhk: "2BHK",
+    body:
+      "The property itself was okay, but deposit deductions were vague and the communication style was informal when issues came up. Keep every payment receipt and message.",
+    depositReturned: "PARTIAL",
+    ratings: { fairness: 2, communication: 2, maintenance: 3, depositHandling: 2, privacy: 3 },
+    tags: ["Deposit deductions", "Keep receipts", "Informal communication"],
+    publishedAt: "2026-05-13T09:10:00.000Z",
+    status: "PUBLISHED"
+  },
+  {
+    id: "rv-107",
+    landlordId: "ll-009",
+    landlordName: "Urban Nest",
+    reviewerType: "IT_PROFESSIONAL",
+    locality: "BTM Layout",
+    bhk: "3BHK",
+    body:
+      "Most concerns were minor and the landlord stayed within the agreement terms. Good written updates and decent privacy boundaries made the stay predictable.",
+    depositReturned: "FULL",
+    ratings: { fairness: 4, communication: 4, maintenance: 4, depositHandling: 4, privacy: 4 },
+    tags: ["Predictable", "Written updates", "Privacy respected"],
+    publishedAt: "2026-05-14T07:30:00.000Z",
+    status: "PUBLISHED"
   }
 ];
 
@@ -140,6 +188,42 @@ export const rentData: RentDataPoint[] = [
     depositPaid: 50000,
     reportedMonth: "2026-04-01",
     verifiedByReceipt: false
+  },
+  {
+    id: "rent-005",
+    locality: "Jayanagar",
+    ward: "South",
+    city: "Bengaluru",
+    bhk: "1BHK",
+    furnishing: "SEMI",
+    monthlyRent: 28000,
+    depositPaid: 56000,
+    reportedMonth: "2026-05-01",
+    verifiedByReceipt: true
+  },
+  {
+    id: "rent-006",
+    locality: "BTM Layout",
+    ward: "Bommanahalli",
+    city: "Bengaluru",
+    bhk: "3BHK",
+    furnishing: "FULLY",
+    monthlyRent: 46000,
+    depositPaid: 92000,
+    reportedMonth: "2026-05-01",
+    verifiedByReceipt: true
+  },
+  {
+    id: "rent-007",
+    locality: "Electronic City",
+    ward: "South East",
+    city: "Bengaluru",
+    bhk: "2BHK",
+    furnishing: "SEMI",
+    monthlyRent: 30000,
+    depositPaid: 60000,
+    reportedMonth: "2026-05-01",
+    verifiedByReceipt: false
   }
 ];
 
@@ -166,6 +250,18 @@ export const rightsGuides = [
     id: "rent-hike",
     title: "My landlord is demanding an unusual rent hike",
     summary: "Compare the request with local trends and ask for a written revision before agreeing.",
+    language: ["English", "Kannada", "Hindi"]
+  },
+  {
+    id: "surprise-entry",
+    title: "My landlord keeps visiting without notice",
+    summary: "Set a written boundary and document every visit with date, time, and message proof.",
+    language: ["English", "Kannada", "Hindi"]
+  },
+  {
+    id: "repair-delay",
+    title: "Repairs are being ignored for weeks",
+    summary: "Ask for a formal timeline and record the gap between request and action.",
     language: ["English", "Kannada", "Hindi"]
   }
 ];

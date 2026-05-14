@@ -42,6 +42,23 @@ npm run dev:web
 
 Web app runs on `http://localhost:5173`.
 
+## Gemini chat setup
+
+The AI chat page uses the Gemini API through the Fastify backend. You need:
+
+- `GEMINI_API_KEY`: create this in Google AI Studio / Gemini API and keep it in `apps/api/.env`
+- `GEMINI_MODEL`: optional, defaults to `gemini-1.5-flash`
+
+Put the values in `apps/api/.env` like this:
+
+```bash
+PORT=4000
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+The backend route is `POST /api/chat`, and the frontend chat page is `AI chat` in the main menu.
+
 ## Product direction
 
 DoorSpeaks is designed like Glassdoor for landlords and rental properties, centered on tenant trust, legal clarity, and transparent rental data.

@@ -92,6 +92,71 @@ app.get("/api/rights", async () => ({
   guides: seededRightsGuides
 }));
 
+app.post("/api/chat", async (request, reply) => {
+  const body = request.body as { message?: string; history?: Array<{ role: string; text: string }> };
+  const message = body.message?.trim();
+
+  if (!message) {
+    return reply.status(400).send({ message: "Message is required" });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+
+  if (!apiKey) {
+    return reply.status(500).send({
+      message: "Gemini is not configured. Set GEMINI_API_KEY in apps/api/.env or your environment."
+    });
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text:
+                "You are DoorSpeaks Assistant, a tenant-first rental guide for Bangalore. Be concise, practical, and clear. Do not invent laws. If legal advice is requested, encourage the user to verify with local counsel or official sources."
+            }
+          ]
+        },
+        contents: [
+          ...(body.history ?? []).map((item) => ({
+            role: item.role === "assistant" ? "model" : "user",
+            parts: [{ text: item.text }]
+          })),
+          {
+            role: "user",
+            parts: [{ text: message }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 500
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return reply.status(502).send({ message: "Gemini request failed", detail: errorText });
+  }
+
+  const payload = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+
+  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+
+  return {
+    reply: text || "I could not generate a response right now. Please try again."
+  };
+});
+
 const port = Number(process.env.PORT || 4000);
 
 app

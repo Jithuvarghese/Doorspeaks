@@ -8,7 +8,12 @@ type ChatMessage = {
   text: string;
 };
 
-export function ChatPage() {
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function ChatPage({ open, onClose }: Props) {
   const { data } = useTestData();
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -72,70 +77,81 @@ export function ChatPage() {
   }
 
   return (
-    <section className="page-stack chat-page">
-      <article className="card card-wide">
-        <div className="section-header">
-          <div>
-            <span className="eyebrow">AI assistant</span>
-            <h2>Tenant help, powered by Gemini</h2>
-          </div>
-        </div>
-        <p className="surface-note">
-          Use this for quick guidance on deposits, agreements, landlord behavior, and next steps.
-        </p>
-
-        <div className="chat-layout">
-          <div className="chat-messages">
-            {messages.map((entry, index) => (
-              <div key={index} className={entry.role === "assistant" ? "chat-bubble assistant" : "chat-bubble user"}>
-                {entry.text}
+    <div className="chat-widget" aria-live="polite">
+      {open ? (
+        <>
+          <button type="button" className="chat-backdrop" aria-label="Close AI assistant" onClick={onClose} />
+          <section className="chat-panel card">
+            <div className="chat-panel-header">
+              <div>
+                <span className="eyebrow">AI assistant</span>
+                <h2>Tenant help, powered by Gemini</h2>
               </div>
-            ))}
-            {isLoading ? <div className="chat-bubble assistant">Thinking...</div> : null}
-          </div>
+              <button type="button" className="chat-close" onClick={onClose} aria-label="Close assistant">
+                ×
+              </button>
+            </div>
+            <p className="surface-note">
+              Use this for quick guidance on deposits, agreements, landlord behavior, and next steps.
+            </p>
 
-          <aside className="chat-sidebar">
-            <div className="sidebar-panel">
-              <strong>Suggested prompts</strong>
-              <div className="list">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="quick-link"
-                    onClick={() => setMessage(prompt)}
+            <div className="chat-layout">
+              <div className="chat-messages">
+                {messages.map((entry, index) => (
+                  <div
+                    key={index}
+                    className={entry.role === "assistant" ? "chat-bubble assistant" : "chat-bubble user"}
                   >
-                    <span>{prompt}</span>
-                  </button>
+                    {entry.text}
+                  </div>
                 ))}
+                {isLoading ? <div className="chat-bubble assistant">Thinking...</div> : null}
               </div>
+
+              <aside className="chat-sidebar">
+                <div className="sidebar-panel">
+                  <strong>Suggested prompts</strong>
+                  <div className="list">
+                    {quickPrompts.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        className="quick-link"
+                        onClick={() => setMessage(prompt)}
+                      >
+                        <span>{prompt}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {data ? (
+                  <div className="sidebar-panel">
+                    <strong>Live context</strong>
+                    <small className="surface-note">{data.landlords.length} landlords loaded</small>
+                    <small className="surface-note">{data.reviews.length} reviews loaded</small>
+                  </div>
+                ) : null}
+              </aside>
             </div>
 
-            {data ? (
-              <div className="sidebar-panel">
-                <strong>Live context</strong>
-                <small className="surface-note">{data.landlords.length} landlords loaded</small>
-                <small className="surface-note">{data.reviews.length} reviews loaded</small>
-              </div>
-            ) : null}
-          </aside>
-        </div>
-
-        <form onSubmit={handleSubmit} className="chat-form">
-          <label className="sr-only" htmlFor="chat-message">
-            Ask DoorSpeaks Assistant
-          </label>
-          <textarea
-            id="chat-message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask about deposit limits, eviction clauses, review strategy, or what to ask before moving in..."
-          />
-          <button type="submit" disabled={isLoading || !message.trim()}>
-            {isLoading ? "Sending..." : "Send to Gemini"}
-          </button>
-        </form>
-      </article>
-    </section>
+            <form onSubmit={handleSubmit} className="chat-form">
+              <label className="sr-only" htmlFor="chat-message">
+                Ask DoorSpeaks Assistant
+              </label>
+              <textarea
+                id="chat-message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Ask about deposit limits, eviction clauses, review strategy, or what to ask before moving in..."
+              />
+              <button type="submit" disabled={isLoading || !message.trim()}>
+                {isLoading ? "Sending..." : "Send to Gemini"}
+              </button>
+            </form>
+          </section>
+        </>
+      ) : null}
+    </div>
   );
 }

@@ -18,4 +18,4 @@ export type TestDataPayload = {
   rightsGuides: Array<{ id: string; title: string; summary: string; language: string[] }>;
 };
 
-export type PageId = "dashboard" | "landlords" | "deposit" | "reviews" | "rights" | "chat";
+export type PageId = "dashboard" | "landlords" | "reviews" | "tolet";

@@ -1,7 +1,13 @@
+import { config as loadEnv } from "dotenv";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { GoogleGenAI } from "@google/genai";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { depositCheckSchema, reviewInputSchema } from "@doorspeaks/shared";
 import { landlords, reviews, seededRentData, seededRightsGuides } from "./data.js";
+
+loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../.env") });
 
 const app = Fastify({ logger: true });
 
@@ -101,7 +107,7 @@ app.post("/api/chat", async (request, reply) => {
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   if (!apiKey) {
     return reply.status(500).send({
@@ -109,52 +115,45 @@ app.post("/api/chat", async (request, reply) => {
     });
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text:
-                "You are DoorSpeaks Assistant, a tenant-first rental guide for Bangalore. Be concise, practical, and clear. Do not invent laws. If legal advice is requested, encourage the user to verify with local counsel or official sources."
-            }
-          ]
-        },
-        contents: [
-          ...(body.history ?? []).map((item) => ({
-            role: item.role === "assistant" ? "model" : "user",
-            parts: [{ text: item.text }]
-          })),
-          {
-            role: "user",
-            parts: [{ text: message }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 500
-        }
-      })
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const conversation = [
+      ...(body.history ?? []).map((item) => `${item.role === "assistant" ? "Assistant" : "User"}: ${item.text}`),
+      `User: ${message}`
+    ].join("\n");
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: conversation,
+      config: {
+        systemInstruction:
+          "You are DoorSpeaks Assistant, a tenant-first rental guide for Bangalore. Be concise, practical, and clear. Do not invent laws. If legal advice is requested, encourage the user to verify with local counsel or official sources.",
+        temperature: 0.4,
+        maxOutputTokens: 500
+      }
+    });
+
+    return {
+      reply: response.text?.trim() || "I could not generate a response right now. Please try again."
+    };
+  } catch (error) {
+    request.log.error({ error }, "Gemini request failed before receiving a response");
+
+    const errorText = error instanceof Error ? error.message : String(error);
+
+    if (errorText.includes("API key not valid") || errorText.includes("API_KEY_INVALID")) {
+      return reply.send({
+        reply:
+          "Gemini API key is invalid or expired. Replace GEMINI_API_KEY in apps/api/.env with a valid key from AI Studio and try again."
+      });
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    return reply.status(502).send({ message: "Gemini request failed", detail: errorText });
+    return reply.send({
+      reply:
+        "The assistant is temporarily unavailable. Check that GEMINI_API_KEY is set correctly in apps/api/.env and try again."
+    });
   }
-
-  const payload = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-
-  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-
-  return {
-    reply: text || "I could not generate a response right now. Please try again."
-  };
 });
 
 const port = Number(process.env.PORT || 4000);

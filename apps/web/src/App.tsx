@@ -1,25 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTestData } from "./hooks";
-import { ChatPage, DashboardPage, DepositPage, LandlordsPage, ReviewsPage, RightsPage } from "./pages";
+import { ChatPage, DashboardPage, LandlordsPage, ReviewsPage, ToletPage } from "./pages";
 import type { PageId } from "./pages/types";
 
 const pages = [
   { id: "dashboard", label: "Dashboard" },
   { id: "landlords", label: "Landlords" },
-  { id: "deposit", label: "Deposit checker" },
   { id: "reviews", label: "Reviews" },
-  { id: "rights", label: "Rights" },
-  { id: "chat", label: "AI chat" }
+  { id: "tolet", label: "To-let" }
 ] as const;
 
 export function App() {
   const { data: testData, loading, error } = useTestData();
   const [activePage, setActivePage] = useState<PageId>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = menuOpen || chatOpen ? "hidden" : previousOverflow;
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [chatOpen, menuOpen]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        setChatOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const navigate = (page: PageId) => {
     setActivePage(page);
     setMenuOpen(false);
+    setChatOpen(false);
   };
 
   const renderPage = () => {
@@ -44,14 +65,14 @@ export function App() {
         );
       }
 
-      return <DashboardPage testData={testData} onNavigate={navigate} />;
+      return <DashboardPage testData={testData} onNavigate={navigate} onOpenChat={() => setChatOpen(true)} />;
     }
 
     if (activePage === "landlords") return <LandlordsPage />;
-    if (activePage === "deposit") return <DepositPage />;
     if (activePage === "reviews") return <ReviewsPage />;
-    if (activePage === "rights") return <RightsPage />;
-    return <ChatPage />;
+    if (activePage === "tolet") return <ToletPage />;
+
+    return null;
   };
 
   return (
@@ -71,18 +92,28 @@ export function App() {
         </div>
       </header>
 
-      <nav className={menuOpen ? "app-nav app-nav-open" : "app-nav"} aria-label="Primary">
+      <button
+        type="button"
+        className="menu-toggle"
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((current) => !current)}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+
+      {menuOpen ? (
         <button
           type="button"
-          className="menu-toggle"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((current) => !current)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+          className="nav-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
+
+      <nav className={menuOpen ? "app-nav app-nav-open" : "app-nav"} aria-label="Primary">
         <div className="nav-links">
           {pages.map((page) => (
             <button
@@ -99,6 +130,22 @@ export function App() {
 
       <div className="page-content">{renderPage()}</div>
 
+      {chatOpen ? null : (
+        <button
+          type="button"
+          className="chat-launcher-fixed"
+          aria-label="Open AI assistant"
+          onClick={() => setChatOpen(true)}
+        >
+          <span className="chat-launcher-emoji" aria-hidden="true">
+            ✦
+          </span>
+          <span className="chat-launcher-text">AI chat</span>
+        </button>
+      )}
+
+      <ChatPage open={chatOpen} onClose={() => setChatOpen(false)} />
+
       <footer className="site-footer">
         <div className="footer-brand">
           <img className="footer-logo" src="/logo.png" alt="DoorSpeaks" />
@@ -109,7 +156,7 @@ export function App() {
         </div>
         <div className="footer-links">
           <span>Reviews</span>
-          <span>Rights</span>
+          <span>To-let</span>
           <span>Deposit checker</span>
           <span>AI chat</span>
         </div>

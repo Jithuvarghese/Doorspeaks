@@ -887,6 +887,15 @@ button {
   border-radius: 8px;
   padding: 1rem;
   background: #ffffff;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.review-card p {
+  margin: 0.4rem 0 0.75rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .tolet-hero {
@@ -994,6 +1003,11 @@ button {
   flex-direction: column;
   gap: 0.2rem;
   margin-bottom: 0.4rem;
+}
+
+.review-header span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .rent-display {

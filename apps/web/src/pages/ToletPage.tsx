@@ -164,6 +164,47 @@ export function ToletPage({ session, onRequireAuth }: Props) {
 
   const listings = liveTolets.length ? liveTolets : curatedFromTestData;
 
+  function buildToletPayload() {
+    const title = toletForm.title.trim();
+    const locality = toletForm.locality.trim();
+    const ward = toletForm.ward.trim();
+    const city = toletForm.city.trim();
+    const photoUrl = toletForm.photoUrl.trim();
+    const description = toletForm.description.trim();
+    const monthlyRent = Number.parseInt(toletForm.monthlyRent, 10);
+    const deposit = Number.parseInt(toletForm.deposit, 10);
+
+    if (title.length < 4) return { error: "Listing title must be at least 4 characters." } as const;
+    if (locality.length < 2) return { error: "Locality must be at least 2 characters." } as const;
+    if (ward.length < 2) return { error: "Ward must be at least 2 characters." } as const;
+    if (city.length < 2) return { error: "City must be at least 2 characters." } as const;
+    if (Number.isNaN(monthlyRent) || monthlyRent <= 0) return { error: "Monthly rent must be a positive number." } as const;
+    if (Number.isNaN(deposit) || deposit < 0) return { error: "Deposit must be zero or a positive number." } as const;
+
+    try {
+      new URL(photoUrl);
+    } catch {
+      return { error: "Photo URL must be a valid web address." } as const;
+    }
+
+    if (description.length < 20) return { error: "Description must be at least 20 characters." } as const;
+
+    return {
+      payload: {
+        title,
+        locality,
+        ward,
+        city,
+        bhk: toletForm.bhk,
+        furnishing: toletForm.furnishing,
+        monthlyRent,
+        deposit,
+        photoUrl,
+        description
+      }
+    } as const;
+  }
+
   async function handleToletSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -173,23 +214,31 @@ export function ToletPage({ session, onRequireAuth }: Props) {
       return;
     }
 
+    const submission = buildToletPayload();
+    if ("error" in submission) {
+      setToletStatus(submission.error);
+      return;
+    }
+
     const response = await fetch(`${API_BASE}/api/tolets`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.token}`
       },
-      body: JSON.stringify({
-        ...toletForm,
-        monthlyRent: Number(toletForm.monthlyRent),
-        deposit: Number(toletForm.deposit)
-      })
+      body: JSON.stringify(submission.payload)
     });
 
     const payload = await response.json();
 
     if (!response.ok) {
-      setToletStatus(payload.message ?? "Could not post listing.");
+      const validationIssues = Array.isArray(payload.issues)
+        ? payload.issues
+            .map((issue: { message?: string }) => issue.message)
+            .filter((message: string | undefined): message is string => Boolean(message))
+        : [];
+
+      setToletStatus(validationIssues.length ? validationIssues.join(" ") : payload.message ?? "Could not post listing.");
       return;
     }
 
@@ -285,19 +334,19 @@ export function ToletPage({ session, onRequireAuth }: Props) {
             <div className="form-grid">
               <div>
                 <label htmlFor="tolet-title">Listing title</label>
-                <input id="tolet-title" value={toletForm.title} onChange={(event) => setToletForm((c) => ({ ...c, title: event.target.value }))} required />
+                <input id="tolet-title" minLength={4} value={toletForm.title} onChange={(event) => setToletForm((c) => ({ ...c, title: event.target.value }))} required />
               </div>
               <div>
                 <label htmlFor="tolet-locality">Locality</label>
-                <input id="tolet-locality" value={toletForm.locality} onChange={(event) => setToletForm((c) => ({ ...c, locality: event.target.value }))} required />
+                <input id="tolet-locality" minLength={2} value={toletForm.locality} onChange={(event) => setToletForm((c) => ({ ...c, locality: event.target.value }))} required />
               </div>
               <div>
                 <label htmlFor="tolet-ward">Ward</label>
-                <input id="tolet-ward" value={toletForm.ward} onChange={(event) => setToletForm((c) => ({ ...c, ward: event.target.value }))} required />
+                <input id="tolet-ward" minLength={2} value={toletForm.ward} onChange={(event) => setToletForm((c) => ({ ...c, ward: event.target.value }))} required />
               </div>
               <div>
                 <label htmlFor="tolet-city">City</label>
-                <input id="tolet-city" value={toletForm.city} onChange={(event) => setToletForm((c) => ({ ...c, city: event.target.value }))} required />
+                <input id="tolet-city" minLength={2} value={toletForm.city} onChange={(event) => setToletForm((c) => ({ ...c, city: event.target.value }))} required />
               </div>
               <div>
                 <label htmlFor="tolet-bhk">BHK</label>
@@ -330,7 +379,7 @@ export function ToletPage({ session, onRequireAuth }: Props) {
             </div>
             <div>
               <label htmlFor="tolet-description">Description</label>
-              <textarea id="tolet-description" value={toletForm.description} onChange={(event) => setToletForm((c) => ({ ...c, description: event.target.value }))} required />
+                <textarea id="tolet-description" minLength={20} value={toletForm.description} onChange={(event) => setToletForm((c) => ({ ...c, description: event.target.value }))} required />
             </div>
             <button type="submit">Post to-let</button>
           </form>

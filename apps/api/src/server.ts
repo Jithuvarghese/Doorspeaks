@@ -1,21 +1,180 @@
 import { config as loadEnv } from "dotenv";
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { depositCheckSchema, reviewInputSchema } from "@doorspeaks/shared";
-import { landlords, reviews, seededRentData, seededRightsGuides } from "./data.js";
+import { z } from "zod";
+import {
+  landlords,
+  reviews,
+  seededRentData,
+  seededRightsGuides,
+  sessions,
+  tolets,
+  users,
+  type UserRecord,
+  type UserRole
+} from "./data.js";
 
 loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../.env") });
 
 const app = Fastify({ logger: true });
+
+const registerSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(["TENANT", "CUSTOMER"])
+});
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8)
+});
+
+const toletCreateSchema = z.object({
+  title: z.string().min(4),
+  locality: z.string().min(2),
+  ward: z.string().min(2),
+  city: z.string().min(2),
+  bhk: z.enum(["1BHK", "2BHK", "3BHK"]),
+  furnishing: z.enum(["UNFURNISHED", "SEMI", "FULLY"]),
+  monthlyRent: z.number().int().positive(),
+  deposit: z.number().int().nonnegative(),
+  photoUrl: z.string().url(),
+  description: z.string().min(20)
+});
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function hashPassword(password: string, salt: string) {
+  return scryptSync(password, salt, 64).toString("hex");
+}
+
+function verifyPassword(password: string, salt: string, expectedHash: string) {
+  const hash = hashPassword(password, salt);
+  const current = Buffer.from(hash, "hex");
+  const expected = Buffer.from(expectedHash, "hex");
+
+  if (current.length !== expected.length) return false;
+  return timingSafeEqual(current, expected);
+}
+
+function sanitizeUser(user: UserRecord) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  };
+}
+
+function getAuthUser(request: { headers: Record<string, string | string[] | undefined> }, allowedRoles?: UserRole[]) {
+  const authorization = request.headers.authorization;
+  const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
+  if (!headerValue || !headerValue.startsWith("Bearer ")) return null;
+
+  const token = headerValue.slice("Bearer ".length).trim();
+  const session = sessions.find((entry) => entry.token === token);
+  if (!session) return null;
+
+  const user = users.find((entry) => entry.id === session.userId);
+  if (!user) return null;
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) return null;
+  return { user, token };
+}
 
 await app.register(cors, {
   origin: true
 });
 
 app.get("/health", async () => ({ status: "ok" }));
+
+app.post("/api/auth/register", async (request, reply) => {
+  const parsed = registerSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return reply.status(400).send({
+      message: "Invalid registration payload",
+      issues: parsed.error.issues
+    });
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+  const existing = users.find((entry) => entry.email === email);
+
+  if (existing) {
+    return reply.status(409).send({ message: "An account with this email already exists." });
+  }
+
+  const salt = randomBytes(16).toString("hex");
+  const user = {
+    id: `usr-${users.length + 1}`,
+    name: parsed.data.name.trim(),
+    email,
+    role: parsed.data.role,
+    passwordSalt: salt,
+    passwordHash: hashPassword(parsed.data.password, salt),
+    createdAt: new Date().toISOString()
+  } satisfies UserRecord;
+
+  users.push(user);
+
+  const token = randomUUID().replace(/-/g, "") + randomBytes(12).toString("hex");
+  sessions.push({ id: `ses-${sessions.length + 1}`, token, userId: user.id, createdAt: new Date().toISOString() });
+
+  return reply.status(201).send({ token, user: sanitizeUser(user) });
+});
+
+app.post("/api/auth/login", async (request, reply) => {
+  const parsed = loginSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return reply.status(400).send({
+      message: "Invalid login payload",
+      issues: parsed.error.issues
+    });
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+  const user = users.find((entry) => entry.email === email);
+
+  if (!user || !verifyPassword(parsed.data.password, user.passwordSalt, user.passwordHash)) {
+    return reply.status(401).send({ message: "Invalid email or password." });
+  }
+
+  const token = randomUUID().replace(/-/g, "") + randomBytes(12).toString("hex");
+  sessions.push({ id: `ses-${sessions.length + 1}`, token, userId: user.id, createdAt: new Date().toISOString() });
+
+  return reply.send({ token, user: sanitizeUser(user) });
+});
+
+app.get("/api/auth/me", async (request, reply) => {
+  const auth = getAuthUser(request);
+
+  if (!auth) {
+    return reply.status(401).send({ message: "Unauthorized" });
+  }
+
+  return reply.send({ user: sanitizeUser(auth.user) });
+});
+
+app.post("/api/auth/logout", async (request, reply) => {
+  const auth = getAuthUser(request);
+
+  if (!auth) return reply.send({ ok: true });
+
+  const index = sessions.findIndex((entry) => entry.token === auth.token);
+  if (index >= 0) sessions.splice(index, 1);
+
+  return reply.send({ ok: true });
+});
 
 app.get("/api/landlords", async (request, reply) => {
   const query = (request.query as { q?: string }).q?.toLowerCase().trim();
@@ -38,10 +197,49 @@ app.get("/api/test-data", async () => ({
   landlords,
   reviews,
   rentData: seededRentData,
-  rightsGuides: seededRightsGuides
+  rightsGuides: seededRightsGuides,
+  tolets
 }));
 
+app.get("/api/tolets", async () => ({
+  results: [...tolets].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}));
+
+app.post("/api/tolets", async (request, reply) => {
+  const auth = getAuthUser(request, ["TENANT"]);
+
+  if (!auth) {
+    return reply.status(403).send({ message: "Only logged in tenants can post to-let listings." });
+  }
+
+  const parsed = toletCreateSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return reply.status(400).send({
+      message: "Invalid to-let payload",
+      issues: parsed.error.issues
+    });
+  }
+
+  const listing = {
+    id: `tl-${tolets.length + 1}`,
+    ...parsed.data,
+    postedBy: auth.user.name,
+    createdAt: new Date().toISOString()
+  };
+
+  tolets.push(listing);
+
+  return reply.status(201).send({ message: "To-let listing posted.", listing });
+});
+
 app.post("/api/reviews", async (request, reply) => {
+  const auth = getAuthUser(request, ["CUSTOMER"]);
+
+  if (!auth) {
+    return reply.status(403).send({ message: "Only logged in customers can submit reviews." });
+  }
+
   const parsed = reviewInputSchema.safeParse(request.body);
 
   if (!parsed.success) {

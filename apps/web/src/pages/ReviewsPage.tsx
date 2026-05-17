@@ -1,18 +1,48 @@
 import { FormEvent, useState } from "react";
 import type { ReviewInput } from "@doorspeaks/shared";
+import type { AuthSession } from "../auth";
 import { useTestData } from "../hooks";
 import { ReviewCard } from "../components/ReviewCard";
 
 const API_BASE = "http://localhost:4000";
 
-export function ReviewsPage() {
+interface Props {
+  session: AuthSession | null;
+  onRequireAuth?: () => void;
+}
+
+type ReviewCardData = ReviewInput & {
+  id: string;
+  landlordName: string;
+  publishedAt: string;
+};
+
+export function ReviewsPage({ session, onRequireAuth }: Props) {
   const { data } = useTestData();
   const [reviewBody, setReviewBody] = useState("");
   const [reviewStatus, setReviewStatus] = useState("Write at least 100 characters and submit for moderation.");
+  const [localReviews, setLocalReviews] = useState<ReviewCardData[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const reviewLength = reviewBody.trim().length;
 
   async function handleReviewSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (!session?.token) {
+      setReviewStatus("Login as a customer to submit reviews.");
+      onRequireAuth?.();
+      return;
+    }
+
+    if (session.user.role !== "CUSTOMER") {
+      setReviewStatus("Only customer accounts can submit reviews.");
+      return;
+    }
+
+    if (reviewLength < 100) {
+      setReviewStatus("Please write at least 100 characters before submitting.");
+      return;
+    }
 
     const payload: ReviewInput = {
       landlordId: "ll-001",
@@ -31,21 +61,41 @@ export function ReviewsPage() {
       tags: ["Deposit demanded", "Surprise visits"]
     };
 
-    const response = await fetch(`${API_BASE}/api/reviews`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    setIsSubmitting(true);
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${API_BASE}/api/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.token}`
+        },
+        body: JSON.stringify(payload)
+      });
 
-    if (!response.ok) {
-      setReviewStatus(`Submission failed: ${data.message ?? "Invalid data"}`);
-      return;
+      const data = await response.json();
+
+      if (!response.ok) {
+        setReviewStatus(`Submission failed: ${data.message ?? "Invalid data"}`);
+        return;
+      }
+
+      setReviewStatus(`Submitted successfully. Review ID: ${data.reviewId}`);
+      setLocalReviews((current) => [
+        {
+          ...payload,
+          id: data.reviewId ?? `local-${Date.now()}`,
+          landlordName: "A. Srinivas",
+          publishedAt: new Date().toISOString()
+        },
+        ...current
+      ]);
+      setReviewBody("");
+    } catch {
+      setReviewStatus("Could not submit review right now. Please check API/server and try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setReviewStatus(`Submitted successfully. Review ID: ${data.reviewId}`);
-    setReviewBody("");
   }
 
   return (
@@ -71,8 +121,8 @@ export function ReviewsPage() {
             <small className="mono">{reviewLength} / 100 minimum characters</small>
             <small className="surface-note">More detail helps other tenants make a better decision.</small>
           </div>
-          <button type="submit" disabled={reviewLength < 100}>
-            Submit review
+          <button type="submit" disabled={reviewLength < 100 || isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit review"}
           </button>
         </form>
         <p className="surface-note">{reviewStatus}</p>
@@ -86,6 +136,9 @@ export function ReviewsPage() {
           </div>
         </div>
         <div className="list review-grid">
+          {localReviews.slice(0, 3).map((review) => (
+            <ReviewCard key={review.id} review={review} />
+          ))}
           {data?.reviews.slice(0, 3).map((review) => (
             <ReviewCard key={review.id} review={review} />
           ))}
